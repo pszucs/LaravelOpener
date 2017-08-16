@@ -6,6 +6,8 @@ import re
 from os import path
 from pprint import pprint
 
+SETTINGS_FILE = 'LaravelOpener.sublime-settings'
+
 """
 Add "laravel_opener_project_root": "bikes" to project settings (sublime)
 """
@@ -20,7 +22,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         line_contents = view.substr(line)
 
         # read settings
-        global_settings = sublime.load_settings('LaravelOpener.sublime-settings')
+        global_settings = sublime.load_settings(SETTINGS_FILE)
         views_folder = global_settings.get('views_folder')
         extension = global_settings.get('extension')
 
@@ -42,7 +44,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             last = dirs[-1]
             
             if last == project_root:
-                file_to_open = project_folder + "/" + views_folder + "/" + view_file + extension
+                file_to_open = os.path.join(project_folder, views_folder, view_file + extension)
                 
                 # is it a route name?
                 laravel_routes_file = self.laravel_routes_file(project_folder)
@@ -58,7 +60,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
 
         if named_route_found is True:
             route = self.get_controller_and_method(route_line)
-            filename = project_folder + "/app/Http/Controllers/" + route["controller"] + ".php"
+            filename = os.path.join(project_folder, "app/Http/Controllers", route["controller"] + ".php")
             look_for = "function " + route["method"]
             
             line = self.find_method_position(filename, look_for)
@@ -72,7 +74,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             if os.path.isfile(file_to_open):
                 window.open_file(file_to_open)
             else:
-                self.check_directory(project_folder + "/" + views_folder + "/" + view_file)
+                self.check_directory(os.path.join(project_folder, views_folder, view_file))
                 create_view_file = sublime.ok_cancel_dialog("Create view file?", "Yes")
                 if create_view_file:
                     window.open_file(file_to_open)
@@ -170,6 +172,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             method = re.sub(r'\W+', '', method)
 
             controller = self.controller_in_sub_dir(s[0].split("=>")[1])
+        
         return {
             "controller": controller,
             "method": method
@@ -178,7 +181,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
     def controller_in_sub_dir(self, controller):
         if '\\' in controller:
             parts = controller.split("\\")
-            return re.sub(r'\W+', '', parts[0]) + "/" + re.sub(r'\W+', '', parts[1])
+            return os.path.join(re.sub(r'\W+', '', parts[0]), re.sub(r'\W+', '', parts[1]))
         else:
             return re.sub(r'([^\s\w]|\\)+', '', controller)
 
