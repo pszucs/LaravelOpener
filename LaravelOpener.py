@@ -83,23 +83,21 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         """
         Return the relative path and the basename of the file intented to open
         """
-        view_file = self.find_between(line_contents, "('", "')-")
-        if view_file == "":
-            view_file = self.find_between(line_contents, '("', '")-')
-        if view_file == "":
-            view_file = self.find_between(line_contents, "('", "',")
-        if view_file == "":
-            view_file = self.find_between(line_contents, '("', '",')
-        if view_file == "":
-            view_file = self.find_between(line_contents, "('", "')")
-        if view_file == "":
-            view_file = self.find_between(line_contents, '("', '")')
-        if view_file == "":
-            view_file = self.find_between(line_contents, "'", "'")
-        if view_file == "":
-            view_file = self.find_between(line_contents, '@view ', ' ')
+        separators = [
+            ["('", "')-"],
+            ['("', '")-'],
+            ["('", "',"],
+            ['("', '",'],
+            ["('", "')"],
+            ['("', '")'],
+            ["'", "'"],
+            ['@view ', ' ']
+        ]
 
-        return view_file.replace(".", "/")
+        for i in separators:
+            view_file = self.find_between(line_contents, i[0], i[1])
+            if view_file != "":
+                return view_file.replace(".", "/")
 
     def find_between(self, s, first, last=None):
         """
