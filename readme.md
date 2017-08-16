@@ -47,4 +47,7 @@ Open view files and named routes quickly.
 2. Press the key combination (default: `ctrl+shift+o`)
 
 #### Disclaimer
-I'm not a Python programmer. ;)
+I'm not a Python programmer.
+
+### To-dos
+o handle controllers that are in sub-directories

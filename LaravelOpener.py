@@ -3,6 +3,7 @@ import sublime_plugin
 import os
 import json
 import re
+from os import path
 from pprint import pprint
 
 """
@@ -39,20 +40,22 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             project_folder = folder['path']
             dirs = project_folder.split('/')
             last = dirs[-1]
-            if last != project_root:
-                continue
-            file_to_open = project_folder + "/" + views_folder + "/" + view_file + extension
             
-            # is it a route name?
-            laravel_routes_file = self.laravel_routes_file(project_folder)
-            route_line = self.find_in_routes_file(laravel_routes_file, view_file)
+            if last == project_root:
+                file_to_open = project_folder + "/" + views_folder + "/" + view_file + extension
+                
+                # is it a route name?
+                laravel_routes_file = self.laravel_routes_file(project_folder)
+                route_line = self.find_in_routes_file(laravel_routes_file, view_file)
 
-            if route_line is not False:
-                choice = sublime.ok_cancel_dialog("Named route found.", "Go to definition")
-                if choice is True:
-                    named_route_found = True
-                    break
-        
+                if route_line is not False:
+                    choice = sublime.ok_cancel_dialog("Named route found.", "Go to definition")
+                    
+                    if choice is True:
+                        named_route_found = True
+
+                break
+
         if named_route_found is True:
             route = self.get_controller_and_method(route_line)
             filename = project_folder + "/app/Http/Controllers/" + route["controller"] + ".php"
@@ -61,27 +64,6 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             line = self.find_method_position(filename, look_for)
             window.open_file("{0}:{1}:{2}".format(filename, line, 0), sublime.ENCODED_POSITION)
 
-            # vv = window.open_file(filename)
-
-            # print(vv.is_loading())
-
-            # vv = window.find_open_file(filename)
-            # print(vv.size())            
-
-            # # read file line by line
-            # lines = vv.substr(sublime.Region(0, vv.size())).split("\n")
-
-            # for idx, val in enumerate(lines):
-                # print(idx)
-                # look_for = "function " + a["method"]
-                # pos = val.find(look_for)
-                # if pos != -1:
-                #     pt = vv.text_point(idx, pos)
-                #     pt2 = vv.text_point(idx, pos + len(look_for))
-                #     vv.sel().clear()
-                #     vv.sel().add(sublime.Region(pt, pt2))
-                #     vv.show(pt)
-                    # return
         else:
             if file_to_open is None:
                 sublime.message_dialog("Make sure the project root is set in the config file!")
@@ -90,6 +72,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             if os.path.isfile(file_to_open):
                 window.open_file(file_to_open)
             else:
+                self.check_directory(project_folder + "/" + views_folder + "/" + view_file)
                 create_view_file = sublime.ok_cancel_dialog("Create view file?", "Yes")
                 if create_view_file:
                     window.open_file(file_to_open)
@@ -195,3 +178,9 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
             "controller": controller,
             "method": method
         }
+
+    def check_directory(self, new_path):
+        directory = path.dirname(new_path)
+        print("directory: " + directory)
+        if not path.exists(directory):
+            os.makedirs(directory)
