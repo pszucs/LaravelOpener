@@ -163,22 +163,26 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         s = route_line.replace(' ', '').split(',')[-1].split("@")
 
         if "->name" in route_line:
-            controller = re.sub(r'\W+', '', s[0])
+            controller = self.controller_in_sub_dir(s[0])
             method = re.sub(r'\W+', '', self.find_between(route_line, "@", ")->name("))
         else:
             method = s[1]
             method = re.sub(r'\W+', '', method)
 
-            controller = s[0].split("=>")[1]
-            controller = re.sub(r'\W+', '', controller)
-
+            controller = self.controller_in_sub_dir(s[0].split("=>")[1])
         return {
             "controller": controller,
             "method": method
         }
 
+    def controller_in_sub_dir(self, controller):
+        if '\\' in controller:
+            parts = controller.split("\\")
+            return re.sub(r'\W+', '', parts[0]) + "/" + re.sub(r'\W+', '', parts[1])
+        else:
+            return re.sub(r'([^\s\w]|\\)+', '', controller)
+
     def check_directory(self, new_path):
         directory = path.dirname(new_path)
-        print("directory: " + directory)
         if not path.exists(directory):
             os.makedirs(directory)

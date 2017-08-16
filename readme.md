@@ -50,4 +50,4 @@ Open view files and named routes quickly.
 I'm not a Python programmer.
 
 ### To-dos
-o handle controllers that are in sub-directories
+o Test on Windows and MacOS
