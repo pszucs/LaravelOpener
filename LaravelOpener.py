@@ -39,8 +39,8 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         named_route_found = False
 
         for folder in sublime.active_window().project_data()['folders']:
-            project_folder = folder['path']
-            dirs = project_folder.split('/')
+            project_folder = folder['path'].replace('\\\\', '\\')
+            dirs = project_folder.split(os.sep)
             last = dirs[-1]
             
             if last == project_root:
@@ -86,12 +86,12 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         Return the relative path and the basename of the file intented to open
         """
         separators = [
+            ["('", "')"],
             ["('", "')-"],
             ['("', '")-'],
             ["('", "',"],
-            ['("', '",'],
-            ["('", "')"],
             ['("', '")'],
+            ['("', '",'],
             ["'", "'"],
             ['@view ', ' ']
         ]
