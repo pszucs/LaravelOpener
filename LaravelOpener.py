@@ -7,114 +7,75 @@ from os import path
 from pprint import pprint
 
 SETTINGS_FILE = 'LaravelOpener.sublime-settings'
-
-"""
-Add "laravel_opener_project_root": "bikes" to project settings (sublime)
-"""
+file_to_be_opened = ''
 
 class LaravelOpenerCommand(sublime_plugin.TextCommand):
     def run(self, edit):
-        view = self.view
-        window = view.window()
-        folders = window.folders()
-        region = view.sel()[0].begin()
-        line = view.line(region)
-        line_contents = view.substr(line)
-
         # read settings
-        global_settings = sublime.load_settings(SETTINGS_FILE)
-        views_folder = global_settings.get('views_folder')
-        extension = global_settings.get('extension')
-
-        view_file = self.get_view_file(line_contents)
-        project_data = sublime.active_window().project_data()
-
-        if 'laravel_opener_project_root' not in project_data:
+        self.global_settings = sublime.load_settings(SETTINGS_FILE)
+        self.views_folder = self.global_settings.get('views_folder')
+        self.extension = self.global_settings.get('extension')
+        self.project_data = sublime.active_window().project_data()
+        
+        if 'laravel_opener_project_root' not in self.project_data:
             sublime.message_dialog("Please add the 'laravel_opener_project_root' property to your project's config file.")
             return
 
-        project_root = project_data['laravel_opener_project_root']
-        
-        file_to_open = None
-        named_route_found = False
+        view_file = ""
+        view = self.view
+        window = view.window()
+        fn_name = view.substr(view.sel()[0]) # selected text
+
+        # text was selected
+        if fn_name:
+            fn_regions = view.find_by_selector('meta.function - meta.function.inline')
+            if fn_regions:
+                for fn_region in reversed(fn_regions):
+                    fn_def = view.substr(view.line(fn_region.a))
+                    if "function " + fn_name in fn_def:
+                        fn_block = view.substr(fn_region)
+                        match_obj = re.search(r'(view|make)\([\'\"]([a-zA-z0-9_\.\/]*)[\'\"]', fn_block)
+                        if match_obj:
+                            view_file = match_obj.group(2).replace(".", "/")
+                            break
+        # no selection
+        else:
+            # check to see if there's a view file in the current line
+            line_contents = Contents.get_current_line(self.view)
+            match_obj = re.search(r'(view|make)\([\'\"]([a-zA-z0-9_\.\/]*)[\'\"]', line_contents)
+            if match_obj:
+                view_file = match_obj.group(2).replace(".", "/")
 
         for folder in sublime.active_window().project_data()['folders']:
             project_folder = folder['path'].replace('\\\\', '\\')
             dirs = project_folder.split(os.sep)
             last = dirs[-1]
             
-            if last == project_root:
-                file_to_open = os.path.join(project_folder, views_folder, view_file + extension)
-                
-                # is it a route name?
-                laravel_routes_file = self.laravel_routes_file(project_folder)
-                route_line = self.find_in_routes_file(laravel_routes_file, view_file)
+            if last == self.project_data['laravel_opener_project_root']:
+                if len(view_file):
+                    file_to_open = os.path.normpath(os.path.join(project_folder, self.views_folder, view_file + self.extension))
+                    if os.path.isfile(file_to_open):
+                        window.open_file(file_to_open)
+                    else:
+                        self.check_directory(os.path.normpath(os.path.join(project_folder, self.views_folder, view_file)))
+                        create_view_file = sublime.ok_cancel_dialog("Create view file?", "Yes")
+                        if create_view_file:
+                            window.open_file(file_to_open)
+                        else:
+                            window.new_file()
+                    return
 
-                if route_line is not False:
-                    choice = sublime.ok_cancel_dialog("Named route found.", "Go to definition")
-                    
-                    if choice is True:
-                        named_route_found = True
+                # was the plugin invoked from the routes file?
+                route = self.parse_controller_method(Contents.get_current_line(self.view))
 
+                if route is not False:
+                    filename = os.path.normpath(os.path.join(project_folder, "app/Http/Controllers", route["controller"] + ".php"))
+                    look_for = "function " + route["method"]                        
+                    line = self.find_method_position(filename, look_for)
+                    global file_to_be_opened
+                    file_to_be_opened = filename
+                    window.open_file("{0}:{1}".format(filename, line), sublime.ENCODED_POSITION)
                 break
-
-        if named_route_found is True:
-            route = self.get_controller_and_method(route_line)
-            filename = os.path.join(project_folder, "app/Http/Controllers", route["controller"] + ".php")
-            look_for = "function " + route["method"]
-            
-            line = self.find_method_position(filename, look_for)
-            window.open_file("{0}:{1}:{2}".format(filename, line, 0), sublime.ENCODED_POSITION)
-
-        else:
-            if file_to_open is None:
-                sublime.message_dialog("Make sure the project root is set in the config file!")
-                return
-
-            if os.path.isfile(file_to_open):
-                window.open_file(file_to_open)
-            else:
-                self.check_directory(os.path.join(project_folder, views_folder, view_file))
-                create_view_file = sublime.ok_cancel_dialog("Create view file?", "Yes")
-                if create_view_file:
-                    window.open_file(file_to_open)
-                else:
-                    window.new_file()
-    
-    def get_view_file(self, line_contents):
-        """
-        Return the relative path and the basename of the file intented to open
-        """
-        separators = [
-            ["('", "')"],
-            ["('", "')-"],
-            ['("', '")-'],
-            ["('", "',"],
-            ['("', '")'],
-            ['("', '",'],
-            ["'", "'"],
-            ['@view ', ' ']
-        ]
-
-        for i in separators:
-            view_file = self.find_between(line_contents, i[0], i[1])
-            if view_file != "":
-                return view_file.replace(".", "/")
-
-    def find_between(self, s, first, last=None):
-        """
-        Returns the string found between first and last
-        """
-        try:
-            start = s.index(first) + len(first)
-            if last is None:
-                end = 0
-            else:
-                end = s.index(last, start)
-
-            return s[start:end]
-        except ValueError:
-            return ""
 
     def laravel_routes_file(self, project_folder):
         """
@@ -143,9 +104,21 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
                 if look_for in line:
                     return num
 
+    def parse_controller_method(self, line_contents):
+        """
+        Gets the controller and method name from the line
+        """
+        match_obj = re.search(r'\'([\d\w]*)\@([\d\w]*)\'', line_contents)
+        if match_obj:
+            return {
+                "controller": match_obj.group(1),
+                "method": match_obj.group(2)
+            }
+        return False
+
     def find_in_routes_file(self, laravel_routes_file, route_name):
         """
-        Find route_name in laravel_routes_file
+        Find route_name in laravel_routes_file - not in use, to be added later
         """
         for line in open(laravel_routes_file):
             line = line.replace(" ", "")
@@ -158,34 +131,42 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
 
         return False
 
-    def get_controller_and_method(self, route_line):
-        """
-        @todo: controllers can be organised into sub-directories
-        """
-        s = route_line.replace(' ', '').split(',')[-1].split("@")
-
-        if "->name" in route_line:
-            controller = self.controller_in_sub_dir(s[0])
-            method = re.sub(r'\W+', '', self.find_between(route_line, "@", ")->name("))
-        else:
-            method = s[1]
-            method = re.sub(r'\W+', '', method)
-
-            controller = self.controller_in_sub_dir(s[0].split("=>")[1])
-        
-        return {
-            "controller": controller,
-            "method": method
-        }
-
-    def controller_in_sub_dir(self, controller):
-        if '\\' in controller:
-            parts = controller.split("\\")
-            return os.path.join(re.sub(r'\W+', '', parts[0]), re.sub(r'\W+', '', parts[1]))
-        else:
-            return re.sub(r'([^\s\w]|\\)+', '', controller)
-
     def check_directory(self, new_path):
+        """
+        Create the directory if it doesn't exist
+        """
         directory = path.dirname(new_path)
         if not path.exists(directory):
             os.makedirs(directory)
+
+class Contents():
+    def get_current_line(view):
+        """
+        Returns the contents of the line where the cursor is
+        """
+        region = view.sel()[0].begin()
+        line = view.line(region)
+        return view.substr(line)
+
+class LaravelOpenerEventListener(sublime_plugin.EventListener):
+    def on_load_async(self, view):
+        """
+        Listen to the event when a file opening is complete.
+        Select the method name so that the plugin can be executed again.
+        """
+
+        # if this is not the file that was intented to be opened by the plugin, exit early
+        if view.file_name() != file_to_be_opened:
+            return
+
+        line_contents = Contents.get_current_line(view)
+
+        region = view.sel()[0].begin()  # sel() returns Selection (reference to the selection)
+        line = view.line(region)
+
+        pos1 = line.a + line_contents.find("function") + 9
+        pos2 = line.a +line_contents.find("(")
+
+        view.sel().clear()
+        view.sel().add(sublime.Region(pos1, pos2))
+        view.show(pos1)

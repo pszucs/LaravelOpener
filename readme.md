@@ -32,14 +32,36 @@ Open view files and named routes quickly.
     ```
 
 ## Usage
-### View files
-1. Place the cursor in the source file where the link to the view file is.
+### Open view files from the controller
+
+#### Method 1
+
+1. Place the cursor on the line in the source file where the link to the view file is.
     ```php
     return view('user.edit.permissions', compact('user', 'roles'));
     ```
 2. Press the key combination (default: `ctrl+shift+o`)
     > if the view file doesn't exist and you save the file it will be saved in the appropriate directory
-### Named routes
+
+![controller_view](https://user-images.githubusercontent.com/2471046/48292738-80ea2280-e473-11e8-87e3-f1a2a87aa1d0.gif)
+
+#### Method 2
+
+1. Navigate to the controller method using the Command Palette - this will select/highlight the function name.
+2. Press the key combination (default: `ctrl+shift+o`)
+
+![controller_method_name_view](https://user-images.githubusercontent.com/2471046/48292731-7af44180-e473-11e8-86e2-5b87d884253a.gif)
+
+### Open controllers from the routes file
+1. Place the cursor on the line in the routes file where the controller and method is defined:
+    ```php
+    Route::post('upload/store_image', ['as' => 'image', 'uses' => 'FileUploadController@storeImage']);
+    ```
+2. Press the key combination (default: `ctrl+shift+o`) and the controller opens with the method name selected. Press the key combination again and the view file opens too.
+
+![routes_controller_view](https://user-images.githubusercontent.com/2471046/48292743-83e51300-e473-11e8-8372-1a789a27b833.gif)
+
+### Named routes (temporarily disabled)
 1. Place the cursor in the source file where the link to the route is.
     ```php
     {{ route("createUser") }}
