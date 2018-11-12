@@ -40,6 +40,9 @@ Open view files and named routes quickly.
     ```php
     return view('user.edit.permissions', compact('user', 'roles'));
     ```
+
+Supported methods: `view(), View::make(), @include()`
+
 2. Press the key combination (default: `ctrl+shift+o`)
     > if the view file doesn't exist and you save the file it will be saved in the appropriate directory
 
