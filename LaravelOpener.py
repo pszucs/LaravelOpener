@@ -42,7 +42,7 @@ class LaravelOpenerCommand(sublime_plugin.TextCommand):
         else:
             # check to see if there's a view file in the current line
             line_contents = Contents.get_current_line(self.view)
-            match_obj = re.search(r'(view|make)\([\'\"]([a-zA-z0-9_\.\/]*)[\'\"]', line_contents)
+            match_obj = re.search(r'(view|make|\@include)\([\'\"]([a-zA-z0-9_\.\/]*)[\'\"]', line_contents)
             if match_obj:
                 view_file = match_obj.group(2).replace(".", "/")
 
